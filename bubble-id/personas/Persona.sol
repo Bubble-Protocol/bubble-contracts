@@ -6,7 +6,7 @@ import "./PersonaSDAC.sol";
 import "../proxyid/ProxyId.sol";
 import "../proxyid/Proxyable.sol";
 import "../../bubble-fs/sdacs/SDAC.sol";
-import "../../bubble-fs/sdacs/TransactionFunded.sol";
+import "../../utils/proxytx/TransactionFunded.sol";
 
 /**
  * BubblePersona v0.0.3

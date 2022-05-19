@@ -9,7 +9,7 @@ pragma solidity ^0.8.0;
 
 import "./Roles.sol";
 import "../bubble-id/proxyid/Proxyable.sol";
-import "../bubble-fs/sdacs/TransactionFunded.sol";
+import "../utils/proxytx/TransactionFunded.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";

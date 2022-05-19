@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./SDAC.sol";
-import "./TransactionFunded.sol";
+import "../../utils/proxytx/TransactionFunded.sol";
 
 /**
  * @dev An SDAC that can be constructed by a transaction proxy server.  

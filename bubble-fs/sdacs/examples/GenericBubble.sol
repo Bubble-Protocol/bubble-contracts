@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../TransactionFunded.sol";
+import "../../../utils/proxytx/TransactionFunded.sol";
 import "../../../bubble-id/proxyid/Proxyable.sol";
 
 /**

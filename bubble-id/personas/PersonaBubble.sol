@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./PersonaSDAC.sol";
-import "../../bubble-fs/sdacs/TransactionFunded.sol";
+import "../../utils/proxytx/TransactionFunded.sol";
 import "../proxyid/Proxyable.sol";
 
 

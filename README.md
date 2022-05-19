@@ -43,3 +43,13 @@ Bubble Protocol's project-milestone NFTs use a [tailored ERC721 contract](bubble
 
 The [Bubble Protocol project's NFT webpage](https://bubbleprotocol.com/nfts) uses the [Bubble Pass Chrome Extension](https://chrome.google.com/webstore/detail/bubble-pass/hdclcadfoglogdajchmemdgnggkboloa) to authenticate the user in the browser and retrieve any NFT images they own.  The images are retrieved from the project's NFT bubble, which permits only the owner of an NFT to access it's image.  See the `getPermissions` function within  [ERC721 controlled sdac](bubble-nfts/ERC721ControlledBubble.sol).
 
+## Utils
+
+### Proxy Transactions
+
+Proxy transactions are blockchain transactions published and paid for by a third party.  They remove the need for the end user to buy and hold native coins.  
+
+Each contract method that supports proxy transactions has both the raw method for direct calling and a proxy method for calling from a pre-paid proxy transaction service.  Proxy methods require a signature from an authorised key of a packed packet consisting of the contract address, raw method name and the method parameters.  The signatory is recovered from the signature and used to authorise the transaction.
+
+The [proxytx/TransactionFunded](utils/proxytx/TransactionFunded.sol) contract can be extended to provide utility functions needed to authorise proxy transactions.  Examples can be found throughout these smart contracts, for example: [PersonaBubble.sol](bubble-id/personas/PersonaBubble.sol).
+
