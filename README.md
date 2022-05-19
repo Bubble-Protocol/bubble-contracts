@@ -26,10 +26,10 @@ Bubble ID has an application authentication process similar to OAuth2.0.  When t
 
 To authorise, the dashboard deploys an [Application ID](bubble-id/applications/ApplicationId.sol) contract and registers that ID with each authorised persona restricting it to the requested roles.  (The dashboard has admin rights over personas so it has the power to register new applications with them).  This creates a chain of IDs as shown in the diagram above.
 
-The application ID can optionally control a bubble
+The application ID can optionally control a bubble for holding metadata, user settings and syncing across devices.
 ## Bubble FS
 
-Bubble FS is a private data storage layer for decentralised applications and organisations.  On Bubble FS data is stored in a 'bubble', which is where Bubble Protocol gets it's name.
+Bubble FS is a private data storage layer for decentralised applications and organisations.  On Bubble FS, data is stored in a 'bubble', which is where Bubble Protocol gets it's name.
 
 Bubbles can be large or trivially small. They are designed to be easily created and instantly accessible so that they can be used in everyday data transactions and decentralised applications. For example, the [Bubble Dashboard](https://datonavault.com/bubble) is a decentralised application that uses a bubble to store settings and metadata. This helps the application run smoothly and allows multiple installations across different devices to work as one.
 
@@ -41,5 +41,5 @@ In this repository you will find some [example sdacs](bubble-fs/sdacs/examples) 
 
 Bubble Protocol's project-milestone NFTs use a [tailored ERC721 contract](bubble-nfts/BubbleNFT.sol) specially designed to allow personas (or more accurately, Proxy IDs) to own NFTs.  This allows a user to manage and transfer their NFT using any application with the 'publish' role on their persona.
 
-The [Bubble Protocol project's NFT webpage](https://bubbleprotocol.com/nfts) uses the [Bubble Pass Chrome Extension](https://chrome.google.com/webstore/detail/bubble-pass/hdclcadfoglogdajchmemdgnggkboloa) to authenticate the user in the browser and rerieve any NFT images they own.  The images are retrieved from the project's NFT bubble, which permits only the owner of an NFT to access it's image.  See the `getPermissions` function within  [ERC721 controlled sdac](bubble-nfts/ERC721ControlledBubble.sol).
+The [Bubble Protocol project's NFT webpage](https://bubbleprotocol.com/nfts) uses the [Bubble Pass Chrome Extension](https://chrome.google.com/webstore/detail/bubble-pass/hdclcadfoglogdajchmemdgnggkboloa) to authenticate the user in the browser and retrieve any NFT images they own.  The images are retrieved from the project's NFT bubble, which permits only the owner of an NFT to access it's image.  See the `getPermissions` function within  [ERC721 controlled sdac](bubble-nfts/ERC721ControlledBubble.sol).
 
