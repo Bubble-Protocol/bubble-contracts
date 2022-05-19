@@ -1,0 +1,40 @@
+
+
+Draft v0.1 Role Permissions Standard
+------------------------------------
+
+Bit  Role
+----------------------------------------------------------------------------------------------
+255  admin - isAuthorized must always return true when the requester has the admin bit set
+254  notarise - requester can notarise data on the blockchain, e.g. sign documents
+253  read - requester has read access to all of the persona's vaults
+252  write - requester has write/append access to all of the persona's vaults
+251  identify-as - requester can identity as this id but has little other power
+250  minter - requester can mint NFTs on behalf of this id
+249  publish - requester can publish blockchain transactions on behalf of this id
+
+uint constant ADMIN_ROLE = 1<<255;            // 0x8000000000000000000000000000000000000000000000000000000000000000
+uint constant NOTARISE_ROLE = 1<<254;         // 0x4000000000000000000000000000000000000000000000000000000000000000
+uint constant READ_ROLE = 1<<253;             // 0x2000000000000000000000000000000000000000000000000000000000000000
+uint constant WRITE_ROLE = 1<<252;            // 0x1000000000000000000000000000000000000000000000000000000000000000
+uint constant READ_WRITE_ROLE = 3<<252;       // 0x3000000000000000000000000000000000000000000000000000000000000000
+uint constant IDENTIFY_AS_ROLE = 1<<251;      // 0x0800000000000000000000000000000000000000000000000000000000000000
+uint constant MINTER_ROLE = 1<<250;           // 0x0400000000000000000000000000000000000000000000000000000000000000
+uint constant PUBLISH_ROLE = 1<<249;          // 0x0200000000000000000000000000000000000000000000000000000000000000
+uint constant PAYER_ROLE = 7<<246;            // 0x01C0000000000000000000000000000000000000000000000000000000000000
+uint constant RESTRICTED_PAYER_ROLE = 3<<246; // 0x00C0000000000000000000000000000000000000000000000000000000000000
+uint constant FINANCIAL_ROLE = 1<<246;        // 0x0040000000000000000000000000000000000000000000000000000000000000
+
+
+Proposed v1.0 future standard
+-----------------------------
+
+Bits 224..255 (32-bits)   Application ID
+Bits 0..223   (224-bits)  Role
+
+Note: Admin can create new users and set roles so they must be all powerful.  Need to think about whether even 
+      admin should be restricted from certain roles - e.g. don't want tech-admin of Privacy Regulator ID having 
+      access to people's VCs.  Perhaps an admin Proxy ID could be setup to require multi-sig or could have
+      different admin roles.  Possible for an organisation to create their own Persona contract with specific
+      restrictions. 
+
