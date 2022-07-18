@@ -2,6 +2,8 @@
 
 This repository holds all the smart contracts used across the Bubble Protocol platform plus the project NFTs.  The repository is structured by sub-project.
 
+*** NB: This is alpha version code published for review and test ***
+
 ## Bubble ID
 
 Bubble ID uses a technology we call 'Proxy IDs'.  Proxy IDs are smart contracts that allow the owner to delegate powers to specific keys or to other Proxy IDs.  This allows different applications on different devices to act on behalf of a user's Bubble ID without the need to transfer private keys between devices.
