@@ -377,6 +377,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
         uint256 tokenId
     ) private {
         require(_isAuthorizedFor(sender, PUBLISH_ROLE, _owners[tokenId]), "ERC721: transfer from incorrect owner");
+        require(_owners[tokenId] == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
         _owners[tokenId] = to;
         _balances[from] -= 1;
