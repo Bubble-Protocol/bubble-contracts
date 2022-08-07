@@ -23,9 +23,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# datona specific
+# bubble specific
 spareIcons
 artifacts/
 OpenZeppelin
 .deps
 .vscode
+remixd.sh
+
+# hardhat
+typechain-types
+cache
