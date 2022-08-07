@@ -72,7 +72,7 @@ describe('Execute', async () => {
   }
 
   async function deployPersona(wallet: SignerWithAddress, adminProxies: Address[] = []) {
-    const Persona = await ethers.getContractFactory("BubblePersona", wallet);
+    const Persona = await ethers.getContractFactory("Persona", wallet);
     return await Persona.deploy(address(0), adminProxies);
   }
 

@@ -9,7 +9,7 @@ import "../../bubble-fs/sdacs/SDAC.sol";
 import "../metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 
 /** 
- * BubblePersona v0.0.3
+ * Persona v0.0.4
  *
  * @dev Bubble ID for a specific persona or application.  Implemented as a ProxyId to allow different 
  * keys or ProxyIds to sign as this persona.  This ID can also be used to control a bubble provided
@@ -23,7 +23,7 @@ struct Proxy {
     uint role;
 }
 
-contract BubblePersona is ProxyId, SDAC, BubbleSingleRelayRecipient {
+contract Persona is ProxyId, SDAC, BubbleSingleRelayRecipient {
     
     PersonaSDAC public bubble;
     Proxy[] public proxies;
