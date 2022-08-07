@@ -44,7 +44,7 @@ contract ERC721ControlledBubble is SDAC {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function changeContractOwner(address accountOrProxy) public {
-        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, Roles.ADMIN_ROLE, _proxyOwner), "permission denied");
         require(accountOrProxy != address(0), "invalid address");
         _proxyOwner = accountOrProxy;
     }
@@ -80,7 +80,7 @@ contract ERC721ControlledBubble is SDAC {
      * @dev terminates the contract if the sender is permitted and any termination conditions are met
      */
     function terminate() public override {
-        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, Roles.ADMIN_ROLE, _proxyOwner), "permission denied");
         terminated = true;
     }
     

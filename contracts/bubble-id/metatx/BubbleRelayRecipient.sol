@@ -2,6 +2,10 @@
 
 pragma solidity ^0.8.0;
 
+import "../Roles.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+
+
 /**
  * @title Base class for implementing ERC2771 recipients compatible with Bubble ID's meta transactions.
  *
@@ -24,7 +28,7 @@ pragma solidity ^0.8.0;
  * @notice A subclass must use `_msgSender()` instead of `msg.sender`.
  * @notice A subclass must use `_msgData()` instead of `msg.data`.
  */
-abstract contract BubbleRelayRecipient {
+abstract contract BubbleRelayRecipient is Context {
 
     /**
      * @dev Returns true if the given address is a trusted forwarder and false otherwise.
@@ -35,7 +39,7 @@ abstract contract BubbleRelayRecipient {
      * If this is a meta transaction then extract the sender from the first 20-bytes of the last 52-bytes of the
      * call data.  If not, just return msg.sender.
      */
-    function _msgSender() internal view virtual returns (address ret) {
+    function _msgSender() internal view virtual override returns (address ret) {
         if (msg.data.length >= 52 && isTrustedForwarder(msg.sender)) {
             assembly {
                 ret := shr(96,calldataload(sub(calldatasize(),52)))
@@ -48,7 +52,7 @@ abstract contract BubbleRelayRecipient {
     /**
      * If this is a meta transaction then remove the last 52-bytes of the call data.
      */
-    function _msgData() internal view virtual returns (bytes calldata ret) {
+    function _msgData() internal view virtual override returns (bytes calldata ret) {
         if (msg.data.length >= 52 && isTrustedForwarder(msg.sender)) {
             return msg.data[0:msg.data.length-52];
         } else {
@@ -60,13 +64,13 @@ abstract contract BubbleRelayRecipient {
      * If this is a meta transaction then extract the roles from the last 32-bytes of the call data.  If not, 
      * return all roles (all bits 1) since the sender implicitly has full permission over itself.
      */
-    function _msgRoles() internal view virtual returns (uint ret) {
+    function _msgRoles() internal view returns (uint ret) {
         if (msg.data.length >= 52 && isTrustedForwarder(msg.sender)) {
             assembly {
                 ret := calldataload(sub(calldatasize(),32))
             }
         } else {
-            ret = ALL_ROLES;
+            ret = Roles.ALL_ROLES;
         }
     }
 
@@ -74,9 +78,23 @@ abstract contract BubbleRelayRecipient {
         require(_msgRoles() & role > 0, "permission denied");
     }
 
+    /**
+     * Throws unless:
+     *   - the sender is an ordinary account and is granted admin by the client contract 
+     *   - or the sender is a bubble id, the id is granted admin by the client contract and the signatory 
+     *     has the admin role over the id
+     */
+    modifier onlyAdmin() {
+        require(_isAdmin(_msgSender()), "permission denied");
+        _requireRole(Roles.ADMIN_ROLE);
+        _;
+    }
+
+    /**
+     * Override to enable the onlyAdmin modifier
+     */
+    function _isAdmin(address addressOrProxy) internal view virtual returns (bool) {
+        return false;
+    }
 
 }
-
-
-// Authorisation for all roles has all bits high.
-uint256 constant ALL_ROLES = 2**256 - 1;

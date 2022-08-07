@@ -3,8 +3,8 @@
 pragma solidity ^0.8.0;
 
 import "./PersonaSDAC.sol";
-import "../../utils/proxytx/TransactionFunded.sol";
 import "../proxyid/ProxyIdUtils.sol";
+import "../metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 
 
 /**
@@ -18,7 +18,7 @@ import "../proxyid/ProxyIdUtils.sol";
  *   - There are no directories unless explicitly set
  */
 
-contract PersonaBubble is PersonaSDAC, TransactionFunded {
+contract PersonaBubble is PersonaSDAC, BubbleSingleRelayRecipient {
 
     bytes1 private constant PUBLIC_BIT = 0x08;
 
@@ -36,11 +36,10 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded {
      *
      * Reverts if the ownerSignature has been used before.
      */
-    constructor(address personaId, bytes32 vaultHash, uint nonce, bytes memory ownerSignature) {
-        bytes32 hash = keccak256(abi.encodePacked("PersonaBubble", personaId, vaultHash, nonce));
-        address signer = _recoverSigner(hash, ownerSignature);
-        owner = signer;
-        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, personaId), "permission denied");
+    constructor(address trustedForwarder, address personaId, bytes32 vaultHash) 
+    BubbleSingleRelayRecipient(trustedForwarder)
+    {
+        require(ProxyIdUtils.isAuthorizedFor(owner, Roles.ADMIN_ROLE, personaId), "permission denied");
         ownerId = personaId;  // leave owner as signer so that they can create the vault
         vault = vaultHash;
         permissions[0x227a737497210f7cc2f464e3bfffadefa9806193ccdf873203cd91c8d3eab518] = PUBLIC_BIT;  // file 0x100
@@ -60,8 +59,10 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded {
      * Requirements:
      *   - sender must have admin rights over this ID.
      */
-    function setPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions) public {
-        _setPermissions(msg.sender, userFileHashes, filePermissions);
+    function setPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions) public onlyAdmin {
+        for (uint i=0; i<userFileHashes.length; i++) {
+            permissions[userFileHashes[i]] = filePermissions;
+        }
     }
 
     /**
@@ -74,7 +75,7 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded {
         bytes32 fileHash = keccak256(abi.encodePacked(file));
         bytes1 directoryBit = permissions[fileHash] & DIRECTORY_BIT > 0 ? DIRECTORY_BIT : bytes1(0);
         // check if the requester has admin rights
-        if (ProxyIdUtils.isAuthorizedFor(requester, ProxyIdUtils.ADMIN_ROLE, ownerId)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
+        if (ProxyIdUtils.isAuthorizedFor(requester, Roles.ADMIN_ROLE, ownerId)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
         // check for specific requester/file permissions or for public read permissions
         bytes32 userFileHash = keccak256(abi.encodePacked(address(this), requester, file));
         bytes1 specificPermissions = permissions[userFileHash];
@@ -97,15 +98,16 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded {
      * Requirements:
      *   - sender must have admin rights over this ID.
      */
-    function terminate() public override {
-        _terminate(msg.sender);
+    function terminate() public override onlyAdmin {
+        require(!terminated, "already terminated");
+        terminated = true;
     }
 
     /**
      * @dev Returns the hash (id) of the bubble server that is storing the bubble controlled by
      * this sdac.  Allows the caller to identify which bubble server is used.
      */
-    function getVaultHash() public view override returns (bytes32) {
+    function getVaultHash() public view virtual override returns (bytes32) {
         return vault;
     }
 
@@ -116,50 +118,23 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded {
      * Requirements:
      *   - sender must have admin rights over this ID.
      */
-    function setVaultHash(bytes32 vaultHash) public {
-        _setVaultHash(msg.sender, vaultHash);
-    }
-
-    // Proxy Functions
-
-    function proxySetPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions, uint nonce, bytes memory signature) public {
-        bytes32 message = keccak256(abi.encodePacked("setPermissions", address(this), userFileHashes, filePermissions, nonce));
-        address signer = _recoverSigner(message, signature);
-        _assertTxIsOriginal(message);
-        _setPermissions(signer, userFileHashes, filePermissions);
-    }
-
-    function proxyTerminate(bytes memory signature) public {
-        bytes32 message = keccak256(abi.encodePacked("terminate", address(this)));
-        address signer = _recoverSigner(message, signature);
-        _terminate(signer);
-    }
-
-    function proxySetVaultHash(bytes32 vaultHash, uint nonce, bytes memory signature) public {
-        bytes32 message = keccak256(abi.encodePacked("setVaultHash", address(this), vaultHash, nonce));
-        address signer = _recoverSigner(message, signature);
-        _assertTxIsOriginal(message);
-        _setVaultHash(signer, vaultHash);
-    }
-
-    // Private Functions
-
-    function _setPermissions(address sender, bytes32[] memory userFileHashes, bytes1 filePermissions) private {
-        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
-        for (uint i=0; i<userFileHashes.length; i++) {
-            permissions[userFileHashes[i]] = filePermissions;
-        }
-    }
-
-    function _terminate(address sender) private {
-        require(!terminated, "already terminated");
-        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
-        terminated = true;
-    }
-
-    function _setVaultHash(address sender, bytes32 vaultHash) private {
-        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
+    function setVaultHash(bytes32 vaultHash) public onlyAdmin {
         vault = vaultHash;        
+    }
+
+    /**
+     * @dev Returns true if the given account or ProxyId has admin rights over this ID.
+     */
+    function _isAdmin(address addressOrProxy) internal view override returns (bool) {
+        return ProxyIdUtils.isAuthorizedFor(addressOrProxy, Roles.ADMIN_ROLE, ownerId);
+    }
+
+    function _msgSender() internal view virtual override(Context, BubbleRelayRecipient) returns (address ret) {
+        return BubbleRelayRecipient._msgSender();
+    }
+
+    function _msgData() internal view virtual override(Context, BubbleRelayRecipient) returns (bytes calldata ret) {
+        return BubbleRelayRecipient._msgData();
     }
 
 }

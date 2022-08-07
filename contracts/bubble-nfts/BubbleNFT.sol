@@ -1,4 +1,5 @@
 pragma solidity ^0.8.0;
+pragma abicoder v2;
 
 // SPDX-License-Identifier: MIT
 
@@ -9,10 +10,12 @@ pragma solidity ^0.8.0;
 
 import "./Roles.sol";
 import "../bubble-id/proxyid/ProxyIdUtils.sol";
-import "../utils/proxytx/TransactionFunded.sol";
+import "../bubble-id/metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../utils/registries/NonceRegistry.sol";
 
 
 /**
@@ -47,7 +50,9 @@ import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
  * token id.  Token ID = series<<128 + tokenId
  */
 
-contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
+contract BubbleNFT is IERC721, IERC721Metadata, BubbleSingleRelayRecipient {
+
+    using ECDSA for bytes32;
 
     // ProxyID contract or account that owns this contract
     address _proxyOwner;
@@ -69,11 +74,16 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
     string public override symbol;
     string public bubbleURI = "";
 
+    // Registry for recording request nonces to prevent replay attacks.
+    NonceRegistry public nonceRegistry;
 
     /**
      * @dev Constructs a new contract, setting the owner to the given ProxyID or account
      */
-    constructor(address accountOrProxy, string memory contractName, string memory contractSymbol) {
+    constructor(address trustedForwarder, NonceRegistry registry, address accountOrProxy, string memory contractName, string memory contractSymbol)
+    BubbleSingleRelayRecipient(trustedForwarder)
+    {
+        nonceRegistry = registry;
         _proxyOwner = accountOrProxy;
         name = contractName;
         symbol = contractSymbol;
@@ -90,7 +100,7 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have MINTER_ROLE rights over the current proxy owner of the contract (or be the owner)
      */
     function mint(uint32 series, uint128 tokenId, address owner) public {
-        _mint(msg.sender, series, tokenId, owner);
+        _mint(_msgSender(), series, tokenId, owner);
     }
 
     /**
@@ -109,7 +119,7 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
     function mintWithInvite(address accountOrProxy, uint32 series, uint128 tokenId, uint expiryTime, bytes memory ownerSignature) public {
         require(block.timestamp < expiryTime, "invite has expired");
         bytes memory packet = abi.encodePacked("mintWithInvite", address(this), series, tokenId, expiryTime);
-        address signer = _recoverSigner(keccak256(packet), ownerSignature);
+        address signer = keccak256(packet).toEthSignedMessageHash().recover(ownerSignature);
         _mint(signer, series, tokenId, accountOrProxy);
     }
 
@@ -127,9 +137,9 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
      */
     function mintNextWithInvite(address accountOrProxy, uint32 series, uint nonce, uint expiryTime, bytes memory ownerSignature) public {
         require(block.timestamp < expiryTime, "invite has expired");
-        _assertTxIsOriginal(bytes32(nonce));
+        nonceRegistry.registerNonce(bytes32(nonce));
         bytes memory packet = abi.encodePacked("mintNextWithInvite", address(this), series, nonce, expiryTime);
-        address signer = _recoverSigner(keccak256(packet), ownerSignature);
+        address signer = keccak256(packet).toEthSignedMessageHash().recover(ownerSignature);
         uint128 tokenId = _seriesCounts[series];
         _mint(signer, series, tokenId, accountOrProxy);
     }
@@ -171,7 +181,7 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function setBubbleURI(string memory URI) public {
-        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, Roles.ADMIN_ROLE, _proxyOwner), "permission denied");
         bubbleURI = URI;
     }
     
@@ -184,7 +194,7 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function changeContractOwner(address accountOrProxy) public {
-        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, Roles.ADMIN_ROLE, _proxyOwner), "permission denied");
         require(accountOrProxy != address(0), "invalid address");
         _proxyOwner = accountOrProxy;
     }
@@ -277,28 +287,13 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) external override {
-        _transferFrom(msg.sender, from, to, tokenId);
-    }
-
-    /**
-     * @dev transferFrom but published by a transaction proxy service
-     *
-     * Requirements:
-     *
-     * - see transferFrom
-     * - signature must be generated by a key with PUBLISH_ROLE rights over the owner of the token (or be the owner of the token)
-     */
-    function proxyTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint nonce, 
-        bytes memory signature
-    ) external {
-        _assertTxIsOriginal(bytes32(nonce));
-        bytes32 message = keccak256(abi.encodePacked("transferFrom", address(this), from, to, tokenId, nonce));
-        address signer = _recoverSigner(message, signature);
-        _transferFrom(signer, from, to, tokenId);
+        require(ProxyIdUtils.isAuthorizedFor(_msgSender(), PUBLISH_ROLE, _owners[tokenId]), "ERC721: transfer from incorrect owner");
+        require(_owners[tokenId] == from, "ERC721: transfer from incorrect owner");
+        require(to != address(0), "ERC721: transfer to the zero address");
+        _owners[tokenId] = to;
+        _balances[from] -= 1;
+        _balances[to] += 1;
+        emit Transfer(from, to, tokenId);
     }
 
     /**
@@ -363,26 +358,6 @@ contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
     //
     // Private/Internal Functions
     //
-
-    /**
-     * @dev Transfers `tokenId` token from `from` to `to`.
-     *
-     * see transferFrom()
-     */
-    function _transferFrom(
-        address sender,
-        address from,
-        address to,
-        uint256 tokenId
-    ) private {
-        require(ProxyIdUtils.isAuthorizedFor(sender, PUBLISH_ROLE, _owners[tokenId]), "ERC721: transfer from incorrect owner");
-        require(_owners[tokenId] == from, "ERC721: transfer from incorrect owner");
-        require(to != address(0), "ERC721: transfer to the zero address");
-        _owners[tokenId] = to;
-        _balances[from] -= 1;
-        _balances[to] += 1;
-        emit Transfer(from, to, tokenId);
-    }
 
     /**
      * @dev Mints a new token and assigns its owner. Token ID = series<<128 + tokenId.  Max 160 bits.

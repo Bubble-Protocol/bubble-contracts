@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/Context.sol";
+
 /**
  * Smart Data Access Contract
  *
  * @dev All S-DACs must implement this interface.  Any contract that implements this interface can be 
  * used to construct and manage a bubble on any compatible Bubble server.
  */
-abstract contract SDAC {
+abstract contract SDAC is Context {
 
     string public constant DatonaProtocolVersion = "0.0.2";
 
@@ -19,7 +21,7 @@ abstract contract SDAC {
     bytes1 public constant APPEND_BIT = 0x01;
     bytes1 public constant DIRECTORY_BIT = 0x80;
     
-    address public owner = msg.sender;
+    address public owner = _msgSender();
 
     // File based d----rwa permissions.  Assumes the data vault has validated the requester's ID. 
     // Address(0) is a special file representing the vault's root

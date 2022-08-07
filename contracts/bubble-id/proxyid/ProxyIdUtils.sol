@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./ProxyId.sol";
+import "../Roles.sol";
 
 /**
  * Utility functions and constants for use with the ProxyId isAuthorized function.
@@ -10,9 +11,6 @@ import "./ProxyId.sol";
 
 library ProxyIdUtils {
     
-    // @dev see proxy-roles.txt
-    uint constant ADMIN_ROLE = 1<<255;
-
     /**
      * @dev returns true if the given address is a contract deployed on chain.
      *
@@ -55,7 +53,7 @@ library ProxyIdUtils {
      */
     function isAuthorizedFor(address signatory, uint requiredRoles, address addressOrProxy, uint permittedRoles ) internal view returns (bool) {
         bool addr2IsProxy = _isProxyId(addressOrProxy);
-        bool hasRoles = (permittedRoles & ADMIN_ROLE) == ADMIN_ROLE || (requiredRoles & permittedRoles) == requiredRoles;
+        bool hasRoles = (permittedRoles & Roles.ADMIN_ROLE) == Roles.ADMIN_ROLE || (requiredRoles & permittedRoles) == requiredRoles;
         if (signatory == addressOrProxy) return hasRoles;
         else if (addr2IsProxy) return hasRoles && ProxyId(addressOrProxy).isAuthorized(signatory, requiredRoles);
         else return false;

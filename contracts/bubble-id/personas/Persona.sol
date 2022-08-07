@@ -6,9 +6,9 @@ import "./PersonaSDAC.sol";
 import "../proxyid/ProxyId.sol";
 import "../proxyid/ProxyIdUtils.sol";
 import "../../bubble-fs/sdacs/SDAC.sol";
-import "../../utils/metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
+import "../metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 
-/**
+/** 
  * BubblePersona v0.0.3
  *
  * @dev Bubble ID for a specific persona or application.  Implemented as a ProxyId to allow different 
@@ -36,21 +36,10 @@ contract BubblePersona is ProxyId, SDAC, BubbleSingleRelayRecipient {
     constructor(address trustedForwarder, address[] memory adminProxies) 
     BubbleSingleRelayRecipient(trustedForwarder)
     {
-        proxies.push(Proxy(_msgSender(), ProxyIdUtils.ADMIN_ROLE));
+        proxies.push(Proxy(_msgSender(), Roles.ADMIN_ROLE));
         for (uint i=0; i<adminProxies.length; i++) {
-            proxies.push(Proxy(adminProxies[i], ProxyIdUtils.ADMIN_ROLE));
+            proxies.push(Proxy(adminProxies[i], Roles.ADMIN_ROLE));
         }
-    }
-
-    /**
-     * Throws unless:
-     *   - the sender is an ordinary account and is a proxy admin 
-     *   - or the sender is a bubble id, the id is a proxy admin and the signatory has the admin role over the id
-     */
-    modifier onlyAdmin() {
-        require(isAdmin(_msgSender()), "permission denied");
-        _requireRole(ProxyIdUtils.ADMIN_ROLE);
-        _;
     }
 
     /**
@@ -83,7 +72,7 @@ contract BubblePersona is ProxyId, SDAC, BubbleSingleRelayRecipient {
     function changeOwner(address newOwner) public {
         require(_msgSender() == owner, "permission denied");
         owner = newOwner;
-        proxies[0] = Proxy(owner, ProxyIdUtils.ADMIN_ROLE);
+        proxies[0] = Proxy(owner, Roles.ADMIN_ROLE);
     }
 
     /**
@@ -139,11 +128,11 @@ contract BubblePersona is ProxyId, SDAC, BubbleSingleRelayRecipient {
     /**
      * @dev Returns true if the given account or ProxyId has admin rights over this ID.
      */
-    function isAdmin(address addressOrProxy) public view returns (bool) {
+    function _isAdmin(address addressOrProxy) internal view override returns (bool) {
         for (uint i=0; i<proxies.length; i++) {
-            if (ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, proxies[i].id, proxies[i].role)) return true;
+            if (ProxyIdUtils.isAuthorizedFor(addressOrProxy, Roles.ADMIN_ROLE, proxies[i].id, proxies[i].role)) return true;
         }
-        return false;
+        return false; 
     }
 
     /**
@@ -169,6 +158,14 @@ contract BubblePersona is ProxyId, SDAC, BubbleSingleRelayRecipient {
      */
     function getVaultHash() public returns (bytes32) {
         return bubble.getVaultHash();
+    }
+
+    function _msgSender() internal view virtual override(Context, BubbleRelayRecipient) returns (address ret) {
+        return BubbleRelayRecipient._msgSender();
+    }
+
+    function _msgData() internal view virtual override(Context, BubbleRelayRecipient) returns (bytes calldata ret) {
+        return BubbleRelayRecipient._msgData();
     }
 
 }

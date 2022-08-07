@@ -3,7 +3,8 @@
 pragma solidity ^0.8.0;
 
 import "../proxyid/ProxyIdUtils.sol";
-import "../../bubble-fs/sdacs/TransactionFundedSDAC.sol";
+import "../../bubble-fs/sdacs/SDAC.sol";
+import "../metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 
 /**
  * @dev General purpose SDAC for DApps.  It uses a general purpose permissions scheme that
@@ -15,7 +16,7 @@ import "../../bubble-fs/sdacs/TransactionFundedSDAC.sol";
  *   - Files 0..255 are directories.
  */
 
-contract GenericApplicationBubble is TransactionFundedSDAC {
+contract GenericApplicationBubble is SDAC, BubbleSingleRelayRecipient {
 
     bool terminated = false;
     address ownerId;
@@ -23,20 +24,25 @@ contract GenericApplicationBubble is TransactionFundedSDAC {
     mapping(bytes32=>bytes1) permissions;
 
     /**
-     * Can be constructed by a transaction proxy server.  Owner is set to the account that produced
-     * the ownerSignature and therefore must be key that constructs the vault.  Owner must have
-     * admin rights over the given proxyOwner.  The proxyOwner is designed to be a Persona ID so
-     * that the application bubble can be recovered from the genesis key.  The proxyApplication
-     * is the ProxyID contract address of the application.
+     * Sender must have admin rights over the given proxyOwner.  The proxyOwner is designed to be 
+     * a Persona ID so that the application bubble can be recovered from the genesis key.  The 
+     * proxyApplication is the ProxyID contract address of the application.
      *
      * Reverts if the ownerSignature has been used before.
      */
-    constructor(address proxyOwner, address proxyApplication, uint nonce, bytes memory ownerSignature) 
-        TransactionFundedSDAC("GenericApplicationBubble", nonce, ownerSignature) 
+    constructor(address trustedForwarder, address proxyOwner, address proxyApplication) 
+        BubbleSingleRelayRecipient(trustedForwarder) 
     {
-        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(_msgSender(), Roles.ADMIN_ROLE, proxyOwner), "permission denied");
         ownerId = proxyOwner;  // leave owner as signer so that they can create the vault
         applicationId = proxyApplication;
+    }
+
+    /**
+     * @dev see _isAdmin
+     */
+    function isAdmin(address addressOrProxy) public view returns (bool) {
+        return _isAdmin(addressOrProxy);
     }
 
     /**
@@ -44,10 +50,10 @@ contract GenericApplicationBubble is TransactionFundedSDAC {
      * will be true if it has admin rights over the proxyOwner of this contract or over the
      * application ID.
      */
-    function isAdmin(address addressOrProxy) public view returns (bool) {
+    function _isAdmin(address addressOrProxy) internal view override returns (bool) {
         return 
-            ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, ownerId) || 
-            ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, applicationId);
+            ProxyIdUtils.isAuthorizedFor(addressOrProxy, Roles.ADMIN_ROLE, ownerId) || 
+            ProxyIdUtils.isAuthorizedFor(addressOrProxy, Roles.ADMIN_ROLE, applicationId);
     }
 
     /**
@@ -58,8 +64,10 @@ contract GenericApplicationBubble is TransactionFundedSDAC {
      * Requirements:
      *   - sender must have admin rights over this bubble.
      */
-    function setPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions) public {
-        _setPermissions(msg.sender, userFileHashes, filePermissions);
+    function setPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions) public onlyAdmin {
+        for (uint i=0; i<userFileHashes.length; i++) {
+            permissions[userFileHashes[i]] = filePermissions;
+        }
     }
 
     /**
@@ -70,7 +78,7 @@ contract GenericApplicationBubble is TransactionFundedSDAC {
     function getPermissions(address requester, address file) public view override returns (bytes1) {
         bytes32 fileHash = keccak256(abi.encodePacked(address(this), file));
         bytes1 directoryBit = file < address(256) || permissions[fileHash] & DIRECTORY_BIT > 0 ? DIRECTORY_BIT : bytes1(0);
-        if (isAdmin(requester)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
+        if (_isAdmin(requester)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
         bytes32 userFileHash = keccak256(abi.encodePacked(address(this), requester, file));
         return permissions[userFileHash];
     }
@@ -89,38 +97,17 @@ contract GenericApplicationBubble is TransactionFundedSDAC {
      * Requirements:
      *   - sender must have admin rights over this bubble.
      */
-    function terminate() public override {
-        _terminate(msg.sender);
-    }
-
-    // Proxy Functions
-
-    function proxySetPermissions(bytes32[] memory userFileHashes, bytes1 filePermissions, uint nonce, bytes memory signature) public {
-        bytes32 message = keccak256(abi.encodePacked("setPermissions", address(this), userFileHashes, filePermissions, nonce));
-        address signer = _recoverSigner(message, signature);
-        _assertTxIsOriginal(message);
-        _setPermissions(signer, userFileHashes, filePermissions);
-    }
-
-    function proxyTerminate(bytes memory signature) public {
-        bytes32 message = keccak256(abi.encodePacked("terminate", address(this)));
-        address signer = _recoverSigner(message, signature);
-        _terminate(signer);
-    }
-
-    // Private Functions
-
-    function _setPermissions(address sender, bytes32[] memory userFileHashes, bytes1 filePermissions) public {
-        require(isAdmin(sender), "permission denied");
-        for (uint i=0; i<userFileHashes.length; i++) {
-            permissions[userFileHashes[i]] = filePermissions;
-        }
-    }
-
-    function _terminate(address sender) private {
+    function terminate() public override onlyAdmin {
         require(!terminated, "already terminated");
-        require(isAdmin(sender), "permission denied");
         terminated = true;
+    }
+
+    function _msgSender() internal view virtual override(Context, BubbleRelayRecipient) returns (address ret) {
+        return BubbleRelayRecipient._msgSender();
+    }
+
+    function _msgData() internal view virtual override(Context, BubbleRelayRecipient) returns (bytes calldata ret) {
+        return BubbleRelayRecipient._msgData();
     }
 
 }

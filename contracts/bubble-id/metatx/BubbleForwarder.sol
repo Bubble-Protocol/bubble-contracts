@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../../bubble-id/proxyid/ProxyIdUtils.sol";
-import "../registries/NonceRegistry.sol";
+import "../proxyid/ProxyIdUtils.sol";
+import "../../utils/registries/NonceRegistry.sol";
 import "hardhat/console.sol";
 
 /**

@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "../../../utils/proxytx/TransactionFunded.sol";
+import "../../../bubble-id/metatx/ERC2771Recipients/BubbleSingleRelayRecipient.sol";
 import "../../../bubble-id/proxyid/ProxyIdUtils.sol";
 import "../SDAC.sol";
 
 /**
  * @dev A general purpose bubble designed for use with Bubble ID.
  */
-contract GenericBubble is SDAC {
+contract GenericBubble is SDAC, BubbleSingleRelayRecipient {
 
     // @dev Public file bit mask.  See setPermissions
     bytes1 private constant PUBLIC_BIT = 0x08;
@@ -25,17 +25,26 @@ contract GenericBubble is SDAC {
      * off-chain bubble.  Even an account with admin rights over the proxyOwner will be refused.
      * This will be changed in a future version of the protocol.
      */
-    constructor(address proxyOwner) {
-        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, proxyOwner), "permission denied");
+    constructor(address trustedForwarder, address proxyOwner) 
+    BubbleSingleRelayRecipient(trustedForwarder)
+    {
+        require(ProxyIdUtils.isAuthorizedFor(owner, Roles.ADMIN_ROLE, proxyOwner), "permission denied");
         ownerId = proxyOwner;  // leave owner as signer so that they can create the vault
+    }
+
+    /**
+     * @dev see _isAdmin()
+     */
+    function isAdmin(address addressOrProxy) public view returns (bool) {
+        return _isAdmin(addressOrProxy);
     }
 
     /**
      * @dev Returns true if the given account or ProxyId has admin rights over this bubble, which
      * will be true if it has admin rights over the proxyOwner of this contract.
      */
-    function isAdmin(address addressOrProxy) public view returns (bool) {
-        return ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, ownerId);
+    function _isAdmin(address addressOrProxy) internal view override returns (bool) {
+        return ProxyIdUtils.isAuthorizedFor(addressOrProxy, Roles.ADMIN_ROLE, ownerId);
     }
 
     /**
@@ -116,6 +125,14 @@ contract GenericBubble is SDAC {
         require(!terminated, "already terminated");
         require(isAdmin(msg.sender), "permission denied");
         terminated = true;
+    }
+
+    function _msgSender() internal view virtual override(Context, BubbleRelayRecipient) returns (address ret) {
+        return BubbleRelayRecipient._msgSender();
+    }
+
+    function _msgData() internal view virtual override(Context, BubbleRelayRecipient) returns (bytes calldata ret) {
+        return BubbleRelayRecipient._msgData();
     }
 
 }
