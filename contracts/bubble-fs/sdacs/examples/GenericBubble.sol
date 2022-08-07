@@ -3,13 +3,13 @@
 pragma solidity ^0.8.0;
 
 import "../../../utils/proxytx/TransactionFunded.sol";
-import "../../../bubble-id/proxyid/Proxyable.sol";
+import "../../../bubble-id/proxyid/ProxyIdUtils.sol";
 import "../SDAC.sol";
 
 /**
  * @dev A general purpose bubble designed for use with Bubble ID.
  */
-contract GenericBubble is Proxyable, SDAC {
+contract GenericBubble is SDAC {
 
     // @dev Public file bit mask.  See setPermissions
     bytes1 private constant PUBLIC_BIT = 0x08;
@@ -26,7 +26,7 @@ contract GenericBubble is Proxyable, SDAC {
      * This will be changed in a future version of the protocol.
      */
     constructor(address proxyOwner) {
-        require(_isAuthorizedFor(owner, ADMIN_ROLE, proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, proxyOwner), "permission denied");
         ownerId = proxyOwner;  // leave owner as signer so that they can create the vault
     }
 
@@ -35,7 +35,7 @@ contract GenericBubble is Proxyable, SDAC {
      * will be true if it has admin rights over the proxyOwner of this contract.
      */
     function isAdmin(address addressOrProxy) public view returns (bool) {
-        return _isAuthorizedFor(addressOrProxy, ADMIN_ROLE, ownerId);
+        return ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, ownerId);
     }
 
     /**

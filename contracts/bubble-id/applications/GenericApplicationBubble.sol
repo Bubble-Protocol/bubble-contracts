@@ -2,9 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import "../proxyid/Proxyable.sol";
+import "../proxyid/ProxyIdUtils.sol";
 import "../../bubble-fs/sdacs/TransactionFundedSDAC.sol";
-
 
 /**
  * @dev General purpose SDAC for DApps.  It uses a general purpose permissions scheme that
@@ -16,7 +15,7 @@ import "../../bubble-fs/sdacs/TransactionFundedSDAC.sol";
  *   - Files 0..255 are directories.
  */
 
-contract GenericApplicationBubble is TransactionFundedSDAC, Proxyable {
+contract GenericApplicationBubble is TransactionFundedSDAC {
 
     bool terminated = false;
     address ownerId;
@@ -35,7 +34,7 @@ contract GenericApplicationBubble is TransactionFundedSDAC, Proxyable {
     constructor(address proxyOwner, address proxyApplication, uint nonce, bytes memory ownerSignature) 
         TransactionFundedSDAC("GenericApplicationBubble", nonce, ownerSignature) 
     {
-        require(_isAuthorizedFor(owner, ADMIN_ROLE, proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, proxyOwner), "permission denied");
         ownerId = proxyOwner;  // leave owner as signer so that they can create the vault
         applicationId = proxyApplication;
     }
@@ -47,8 +46,8 @@ contract GenericApplicationBubble is TransactionFundedSDAC, Proxyable {
      */
     function isAdmin(address addressOrProxy) public view returns (bool) {
         return 
-            _isAuthorizedFor(addressOrProxy, ADMIN_ROLE, ownerId) || 
-            _isAuthorizedFor(addressOrProxy, ADMIN_ROLE, applicationId);
+            ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, ownerId) || 
+            ProxyIdUtils.isAuthorizedFor(addressOrProxy, ProxyIdUtils.ADMIN_ROLE, applicationId);
     }
 
     /**

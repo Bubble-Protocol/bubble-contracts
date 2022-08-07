@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./PersonaSDAC.sol";
 import "../../utils/proxytx/TransactionFunded.sol";
-import "../proxyid/Proxyable.sol";
+import "../proxyid/ProxyIdUtils.sol";
 
 
 /**
@@ -18,7 +18,7 @@ import "../proxyid/Proxyable.sol";
  *   - There are no directories unless explicitly set
  */
 
-contract PersonaBubble is PersonaSDAC, TransactionFunded, Proxyable {
+contract PersonaBubble is PersonaSDAC, TransactionFunded {
 
     bytes1 private constant PUBLIC_BIT = 0x08;
 
@@ -40,7 +40,7 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded, Proxyable {
         bytes32 hash = keccak256(abi.encodePacked("PersonaBubble", personaId, vaultHash, nonce));
         address signer = _recoverSigner(hash, ownerSignature);
         owner = signer;
-        require(_isAuthorizedFor(owner, ADMIN_ROLE, personaId), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(owner, ProxyIdUtils.ADMIN_ROLE, personaId), "permission denied");
         ownerId = personaId;  // leave owner as signer so that they can create the vault
         vault = vaultHash;
         permissions[0x227a737497210f7cc2f464e3bfffadefa9806193ccdf873203cd91c8d3eab518] = PUBLIC_BIT;  // file 0x100
@@ -74,7 +74,7 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded, Proxyable {
         bytes32 fileHash = keccak256(abi.encodePacked(file));
         bytes1 directoryBit = permissions[fileHash] & DIRECTORY_BIT > 0 ? DIRECTORY_BIT : bytes1(0);
         // check if the requester has admin rights
-        if (_isAuthorizedFor(requester, ADMIN_ROLE, ownerId)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
+        if (ProxyIdUtils.isAuthorizedFor(requester, ProxyIdUtils.ADMIN_ROLE, ownerId)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
         // check for specific requester/file permissions or for public read permissions
         bytes32 userFileHash = keccak256(abi.encodePacked(address(this), requester, file));
         bytes1 specificPermissions = permissions[userFileHash];
@@ -145,7 +145,7 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded, Proxyable {
     // Private Functions
 
     function _setPermissions(address sender, bytes32[] memory userFileHashes, bytes1 filePermissions) private {
-        require(_isAuthorizedFor(sender, ADMIN_ROLE, ownerId), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
         for (uint i=0; i<userFileHashes.length; i++) {
             permissions[userFileHashes[i]] = filePermissions;
         }
@@ -153,12 +153,12 @@ contract PersonaBubble is PersonaSDAC, TransactionFunded, Proxyable {
 
     function _terminate(address sender) private {
         require(!terminated, "already terminated");
-        require(_isAuthorizedFor(sender, ADMIN_ROLE, ownerId), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
         terminated = true;
     }
 
     function _setVaultHash(address sender, bytes32 vaultHash) private {
-        require(_isAuthorizedFor(sender, ADMIN_ROLE, ownerId), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(sender, ProxyIdUtils.ADMIN_ROLE, ownerId), "permission denied");
         vault = vaultHash;        
     }
 

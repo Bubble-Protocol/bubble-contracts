@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../../bubble-id/proxyid/Proxyable.sol";
+import "../../bubble-id/proxyid/ProxyIdUtils.sol";
 import "../registries/NonceRegistry.sol";
 import "hardhat/console.sol";
 
@@ -42,7 +42,7 @@ import "hardhat/console.sol";
  *
  *   Note, the sender in step (3) is 20-bytes and roles is 32-bytes, appended in that order to req.data and packed.
  */
-contract BubbleForwarder is Proxyable {
+contract BubbleForwarder {
 
     using ECDSA for bytes32;
 
@@ -148,7 +148,7 @@ contract BubbleForwarder is Proxyable {
     {
         if (req.onBehalfOf == address(0)) return (req.from, permittedRoles);
         else {
-            require(_isAuthorizedFor(req.from, req.roles, req.onBehalfOf), "FWD: roles denied");
+            require(ProxyIdUtils.isAuthorizedFor(req.from, req.roles, req.onBehalfOf), "FWD: roles denied");
             uint roles = req.roles & permittedRoles;
             require(roles > 0, "FWD: roles denied");
             return (req.onBehalfOf, roles);
@@ -173,13 +173,6 @@ contract BubbleForwarder is Proxyable {
             keccak256(req.data),
             req.validUntilTime
         );
-        // bytes32 hash = keccak256(message);
-        // console.logBytes32(keccak256(req.data));
-        // console.logBytes(message);
-        // console.logBytes32(hash);
-        // console.logBytes32(hash.toEthSignedMessageHash());
-        // console.logAddress(hash.recover(sig));
-        // console.logAddress(hash.toEthSignedMessageHash().recover(sig));
         require(keccak256(message).toEthSignedMessageHash().recover(sig) == req.from, "FWD: signature mismatch");
     }
 

@@ -8,7 +8,7 @@ pragma solidity ^0.8.0;
 // Bubble Test NFT SDAC: 0xbF3F0f76d07A104a2A709f88E4fb8C0B20c4338b
 
 import "./Roles.sol";
-import "../bubble-id/proxyid/Proxyable.sol";
+import "../bubble-id/proxyid/ProxyIdUtils.sol";
 import "../utils/proxytx/TransactionFunded.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
@@ -47,7 +47,7 @@ import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
  * token id.  Token ID = series<<128 + tokenId
  */
 
-contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
+contract BubbleNFT is TransactionFunded, IERC721, IERC721Metadata {
 
     // ProxyID contract or account that owns this contract
     address _proxyOwner;
@@ -65,8 +65,8 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
     mapping(uint32 => bool) private _seriesLocks;
 
     // Name, symbol and URI of this contract
-    string public name;
-    string public symbol;
+    string public override name;
+    string public override symbol;
     string public bubbleURI = "";
 
 
@@ -144,7 +144,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      * - once locked a series cannot be unlocked
      */
     function lock(uint32 series) external {
-        require(_isAuthorizedFor(msg.sender, MINTER_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, MINTER_ROLE, _proxyOwner), "permission denied");
         require(_seriesLocks[series] == false, "already locked");
         _seriesLocks[series] = true;
     }
@@ -171,7 +171,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function setBubbleURI(string memory URI) public {
-        require(_isAuthorizedFor(msg.sender, ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
         bubbleURI = URI;
     }
     
@@ -184,7 +184,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function changeContractOwner(address accountOrProxy) public {
-        require(_isAuthorizedFor(msg.sender, ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
         require(accountOrProxy != address(0), "invalid address");
         _proxyOwner = accountOrProxy;
     }
@@ -192,14 +192,14 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
     /**
      * @dev Returns the Uniform Resource Identifier (URI) for `tokenId` token.
      */
-    function tokenURI(uint256 tokenId) external view returns (string memory) {
+    function tokenURI(uint256 tokenId) external override view returns (string memory) {
         return string(abi.encodePacked(bubbleURI, _toHexString(uint160(tokenId))));
     }
 
     /**
      * @dev Returns the number of tokens in ``owner``'s account.
      */
-    function balanceOf(address owner) external view returns (uint256 balance) {
+    function balanceOf(address owner) external override view returns (uint256 balance) {
         return _balances[owner];
     }
 
@@ -210,7 +210,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      *
      * - `tokenId` must exist.
      */
-    function ownerOf(uint256 tokenId) external view returns (address owner) {
+    function ownerOf(uint256 tokenId) external override view returns (address owner) {
         return _owners[tokenId];
     }
 
@@ -232,7 +232,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId,
         bytes calldata data
-    ) external pure {
+    ) external override pure {
         revert("not supported");
     }
 
@@ -254,7 +254,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
         address from,
         address to,
         uint256 tokenId
-    ) external pure {
+    ) external override pure {
         revert("not supported");
     }
 
@@ -276,7 +276,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
         address from,
         address to,
         uint256 tokenId
-    ) external {
+    ) external override {
         _transferFrom(msg.sender, from, to, tokenId);
     }
 
@@ -314,7 +314,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      *
      * Emits an {Approval} event.
      */
-    function approve(address to, uint256 tokenId) external pure {
+    function approve(address to, uint256 tokenId) external override pure {
         revert("not supported");
     }
 
@@ -328,7 +328,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      *
      * Emits an {ApprovalForAll} event.
      */
-    function setApprovalForAll(address operator, bool _approved) external pure {
+    function setApprovalForAll(address operator, bool _approved) external override pure {
         revert("not supported");
     }
 
@@ -339,7 +339,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      *
      * - `tokenId` must exist.
      */
-    function getApproved(uint256 tokenId) external pure returns (address operator) {
+    function getApproved(uint256 tokenId) external override pure returns (address operator) {
         revert("not supported");
     }
 
@@ -348,16 +348,15 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      *
      * See {setApprovalForAll}
      */
-    function isApprovedForAll(address owner, address operator) external pure returns (bool) {
+    function isApprovedForAll(address owner, address operator) external override pure returns (bool) {
         revert("not supported");
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external override pure returns (bool) {
         return
             interfaceId == type(IERC721).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId ||
-            interfaceId == type(IERC165).interfaceId ||
-            interfaceId == type(Proxyable).interfaceId;
+            interfaceId == type(IERC165).interfaceId;
     }
 
 
@@ -376,7 +375,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) private {
-        require(_isAuthorizedFor(sender, PUBLISH_ROLE, _owners[tokenId]), "ERC721: transfer from incorrect owner");
+        require(ProxyIdUtils.isAuthorizedFor(sender, PUBLISH_ROLE, _owners[tokenId]), "ERC721: transfer from incorrect owner");
         require(_owners[tokenId] == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
         _owners[tokenId] = to;
@@ -396,7 +395,7 @@ contract BubbleNFT is Proxyable, TransactionFunded, IERC721, IERC721Metadata {
      * - sender must have MINTER_ROLE rights over the current proxy owner of the contract (or be the owner)
      */
     function _mint(address sender, uint32 series, uint128 tokenId, address owner) private {
-        require(_isAuthorizedFor(sender, MINTER_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(sender, MINTER_ROLE, _proxyOwner), "permission denied");
         require(owner != address(0), "invalid recipient address");
         require(_seriesLocks[series] == false, "series is locked");
         uint160 uSeries = uint160(series) << 128;

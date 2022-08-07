@@ -2,9 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-
 import "./Roles.sol";
-import "../bubble-id/proxyid/Proxyable.sol";
+import "../bubble-id/proxyid/ProxyIdUtils.sol";
 import "../bubble-fs/sdacs/SDAC.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 
@@ -22,7 +21,7 @@ address constant NFT_OWNERS_ONLY_DIRECTORY = 0xBF4F4053E48543ABeb77Cac2580d523E9
  * Provides read access for owners of an NFT.  Each owner has read access to a file named after their token ID.
  * Each owner also has access to a global 
  */
-contract ERC721ControlledBubble is SDAC, Proxyable {
+contract ERC721ControlledBubble is SDAC {
 
     address private _proxyOwner;
     bool private terminated = false;
@@ -45,7 +44,7 @@ contract ERC721ControlledBubble is SDAC, Proxyable {
      * - sender must have admin rights over the current proxy owner of the contract (or be the owner)
      */
     function changeContractOwner(address accountOrProxy) public {
-        require(_isAuthorizedFor(msg.sender, ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
         require(accountOrProxy != address(0), "invalid address");
         _proxyOwner = accountOrProxy;
     }
@@ -61,17 +60,17 @@ contract ERC721ControlledBubble is SDAC, Proxyable {
      */
     function getPermissions( address requester, address file ) public override view returns (bytes1) {
         bytes1 directoryBit = (file == PUBLIC_METADATA_FILE) ? bytes1(0) : DIRECTORY_BIT;
-        if (_isAuthorizedFor(requester, READ_WRITE_ROLE, _proxyOwner)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
+        if (ProxyIdUtils.isAuthorizedFor(requester, READ_WRITE_ROLE, _proxyOwner)) return directoryBit | READ_BIT | WRITE_BIT | APPEND_BIT;
         if (file == PUBLIC_METADATA_FILE) return READ_BIT;
         if (file == PUBLIC_DIRECTORY) return DIRECTORY_BIT | READ_BIT;
         if (file == NFT_OWNERS_ONLY_DIRECTORY && nftContract.balanceOf(requester) > 0) return DIRECTORY_BIT | READ_BIT;
-        if (_isAuthorizedFor(requester, IDENTIFY_AS_ROLE, nftContract.ownerOf(uint160(file)))) return DIRECTORY_BIT | READ_BIT;
+        if (ProxyIdUtils.isAuthorizedFor(requester, IDENTIFY_AS_ROLE, nftContract.ownerOf(uint160(file)))) return DIRECTORY_BIT | READ_BIT;
         return NO_PERMISSIONS;
     }
 
     /**
      * @dev returns true if the contract has expired either automatically or has been manually terminated
-     * @custom:depreciated future versions of datona-lib will use getState() === 0
+     * Depreciated.  Future versions of datona-lib will use getState() === 0
      */
     function hasExpired() public override view returns (bool) {
         return terminated;
@@ -81,7 +80,7 @@ contract ERC721ControlledBubble is SDAC, Proxyable {
      * @dev terminates the contract if the sender is permitted and any termination conditions are met
      */
     function terminate() public override {
-        require(_isAuthorizedFor(msg.sender, ADMIN_ROLE, _proxyOwner), "permission denied");
+        require(ProxyIdUtils.isAuthorizedFor(msg.sender, ProxyIdUtils.ADMIN_ROLE, _proxyOwner), "permission denied");
         terminated = true;
     }
     
