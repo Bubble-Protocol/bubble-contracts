@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "../../../utils/proxytx/TransactionFunded.sol";
 import "../../../bubble-id/proxyid/Proxyable.sol";
+import "../SDAC.sol";
 
 /**
  * @dev A general purpose bubble designed for use with Bubble ID.
